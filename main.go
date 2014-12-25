@@ -32,7 +32,7 @@ func createMessage(responseWriter http.ResponseWriter, request *http.Request) {
 
 	message := NewMessage(messageData)
 
-	messages <- message
+	messageList.Push(message)
 
 	responseWriter.WriteHeader(http.StatusAccepted)
 }
@@ -41,15 +41,14 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 	flusher := responseWriter.(http.Flusher)
 
 	responseWriter.Header().Add("Content-Type", "text/event-stream")
-	flusher.Flush()
+	responseWriter.WriteHeader(http.StatusOK)
 
-	for {
-		message := <- messages
-		responseWriter.Write([]byte("data:"))
+	for message := range messageList.Iterator() {
+		fmt.Fprint(responseWriter, "data: ")
 		if encodeErr := json.NewEncoder(responseWriter).Encode(message); nil != encodeErr {
 			log.Fatal(encodeErr)
 		}
-		responseWriter.Write([]byte("\n\n"))
+		fmt.Fprint(responseWriter, "\n\n")
 		flusher.Flush()
 	}
 }
