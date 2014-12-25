@@ -1,0 +1,19 @@
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+.messages {
+  position: absolute;
+  width: 100%;
+  overflow-y: scroll;
+  top: 0;
+  bottom: 4em;
+}
+
+.new-message {
+  position: absolute;
+  width: 100%;
+  bottom: 0;
+  background-color: white;
+}

@@ -6,8 +6,10 @@ import (
 	"os"
 	"log"
 	"encoding/json"
+	"html/template"
 	
 	"github.com/toonketels/router"
+	"github.com/yosssi/ace"
 )
 
 func main() {
@@ -17,12 +19,22 @@ func main() {
 	router.Post("/api/messages", http.HandlerFunc(createMessage))
 
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir("./assets")))
+	mux.HandleFunc("/", index)
 	mux.Handle("/assets/", http.FileServer(http.Dir(".")))
 	mux.Handle("/api/", router)
 
 	address := fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
 	log.Fatal(http.ListenAndServe(address, mux))
+}
+
+var indexTemplae = template.Must(ace.Load("templates/index", "", &ace.Options{
+	DelimLeft: "<<",
+	DelimRight: ">>",
+	DynamicReload: true,
+}))
+
+func index(responseWriter http.ResponseWriter, request *http.Request) {
+	indexTemplae.Execute(responseWriter, map[string]string{"user": "he"})
 }
 
 func createMessage(responseWriter http.ResponseWriter, request *http.Request) {

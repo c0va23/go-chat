@@ -1,0 +1,36 @@
+html ng-app="ChatApp"
+  head
+    title Chat
+
+    meta name="viewport" content="width=device-width, initial-scale=1"
+
+    link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css"
+    link rel="stylesheet" href="assets/application.css"
+
+    script src="//code.jquery.com/jquery-1.11.2.min.js"
+    script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.5/angular.min.js"
+    script src="assets/application.js"
+
+    meta name="user" content="<< .user >>"
+
+  body
+    div.messages
+      div.container-fluid ng-controller="Messages"
+        p.row ng-repeat="message in messages"
+          span.col-md-1.col-sm-1.text-right.text-muted
+            | {{ message.user }}:
+
+          span.col-md-10.col-sm-11
+            | {{ message.text}}
+
+          span.col-md-1.visible-lg-block.text-muted
+            span
+              | {{ message.time | parseDate | date:"yy-MM-dd HH:mm" }}
+
+    div.new-message
+      div.container-fluid ng-controller="NewMessage"
+        form.form ng-submit="send()"
+          div.input-group
+            input.form-control placeholder="Message text" ng-model="newMessage.text" autofocus=true
+            span.input-group-btn
+              button.btn.btn-primary type="submit" Send
