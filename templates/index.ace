@@ -1,6 +1,6 @@
 html ng-app="ChatApp"
   head
-    title Chat
+    title Чат
 
     meta name="viewport" content="width=device-width, initial-scale=1"
 
@@ -31,6 +31,6 @@ html ng-app="ChatApp"
       div.container-fluid ng-controller="NewMessage"
         form.form ng-submit="send()"
           div.input-group
-            input.form-control placeholder="Message text" ng-model="newMessage.text" autofocus=true
+            input.form-control placeholder="Введите текст собщения" ng-model="newMessage.text" autofocus=true
             span.input-group-btn
-              button.btn.btn-primary type="submit" Send
+              button.btn.btn-primary type="submit" Отправить
