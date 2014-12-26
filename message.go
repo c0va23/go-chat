@@ -68,4 +68,8 @@ func (messageList *MessageList) Iterator() <- chan *Message {
   return channel
 }
 
+func (messageList *MessageList) Clean() {
+  messageList.Messages = make([]*Message, 0)
+}
+
 var messageList = NewMessageList()

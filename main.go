@@ -17,6 +17,8 @@ func main() {
 
 	router.Get("/api/messages", http.HandlerFunc(getMessages))
 	router.Post("/api/messages", http.HandlerFunc(createMessage))
+	router.Get("/api/clean", http.HandlerFunc(clean))
+
 	router.Get("/:user", index)
 
 	mux := http.NewServeMux()
@@ -65,4 +67,9 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 		fmt.Fprint(responseWriter, "\n\n")
 		flusher.Flush()
 	}
+}
+
+func clean(responseWriter http.ResponseWriter, request *http.Request) {
+	messageList.Clean()
+	responseWriter.WriteHeader(http.StatusOK)
 }
