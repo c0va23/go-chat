@@ -17,11 +17,11 @@ func main() {
 
 	router.Get("/api/messages", http.HandlerFunc(getMessages))
 	router.Post("/api/messages", http.HandlerFunc(createMessage))
+	router.Get("/:user", index)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", index)
 	mux.Handle("/assets/", http.FileServer(http.Dir(".")))
-	mux.Handle("/api/", router)
+	mux.Handle("/", router)
 
 	address := fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
 	log.Fatal(http.ListenAndServe(address, mux))
@@ -34,7 +34,9 @@ var indexTemplae = template.Must(ace.Load("templates/index", "", &ace.Options{
 }))
 
 func index(responseWriter http.ResponseWriter, request *http.Request) {
-	indexTemplae.Execute(responseWriter, map[string]string{"user": "he"})
+	context := router.Context(request)
+	user := context.Params["user"]
+	indexTemplae.Execute(responseWriter, map[string]string{"user": user})
 }
 
 func createMessage(responseWriter http.ResponseWriter, request *http.Request) {
