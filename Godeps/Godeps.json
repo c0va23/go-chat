@@ -1,0 +1,20 @@
+{
+	"ImportPath": "chat",
+	"GoVersion": "go1.4",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go-uuid/uuid",
+			"Comment": "null-15",
+			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
+		},
+		{
+			"ImportPath": "github.com/toonketels/router",
+			"Rev": "fbdccf0cf11101b0b2fdca8fbff3e522953f26df"
+		},
+		{
+			"ImportPath": "github.com/yosssi/ace",
+			"Comment": "v0.0.4-31-g09e3f9a",
+			"Rev": "09e3f9aef2b40d7bd21db15237afb4af5411a5a8"
+		}
+	]
+}
