@@ -37,6 +37,10 @@ angular
     var message = angular.fromJson(messageEvent.data);
     $scope.messages.push(message);
     $scope.$apply("messages");
+
+    location.hash = message.id;
+
+    angular.element("#new_message_text").focus();
   });
 
   eventSource.addEventListener("error", function() {
