@@ -81,7 +81,11 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Add(CONTENT_TYPE_HEADER, EVENT_STREAM_TYPE)
 	responseWriter.WriteHeader(http.StatusOK)
 
-	for message := range messageList.Iterator(lastEventId) {
+	iterator := messageList.Iterator(lastEventId)
+	go iterator.Iterate()
+	defer iterator.Close()
+
+	for message := range iterator.Messages {
 		fmt.Fprintf(responseWriter, "id: %s\n", message.Id)
 		fmt.Fprint(responseWriter, "data: ")
 		if encodeErr := json.NewEncoder(responseWriter).Encode(message); nil != encodeErr {

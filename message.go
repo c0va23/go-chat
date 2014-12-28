@@ -3,6 +3,7 @@ package main
 import (
   "time"
   "sync"
+  "errors"
 
   "code.google.com/p/go-uuid/uuid"
 )
@@ -19,17 +20,22 @@ type Message struct {
   MessageData
 }
 
-type MessageNextItem interface {
+type MessageListCursor interface {
   NextItem() *MessageListItem
+  Message() *Message
 }
 
 type MessageListItem struct {
-  *Message
-  Next *MessageListItem
+  message *Message
+  nextItem *MessageListItem
 }
 
 func (messageListItem *MessageListItem) NextItem() *MessageListItem {
-  return messageListItem.Next
+  return messageListItem.nextItem
+}
+
+func (messageListItem *MessageListItem) Message() *Message {
+  return messageListItem.message
 }
 
 func NewMessage(messageData MessageData) *Message {
@@ -61,81 +67,22 @@ func (messageList *MessageList) NextItem() *MessageListItem {
   return messageList.FirstItem
 }
 
+func (messageList *MessageList) Message() *Message {
+  return nil
+}
+
 func (messageList *MessageList) Push(message *Message) {
-  messageListItem := &MessageListItem {
-    Message: message,
-  }
+  messageListItem := &MessageListItem { message, nil }
 
   if nil == messageList.FirstItem {
     messageList.FirstItem = messageListItem
   } else {
-    messageList.LastItem.Next = messageListItem
+    messageList.LastItem.nextItem = messageListItem
   }
 
   messageList.LastItem = messageListItem
 
   messageList.Broadcast()
-}
-
-type MessageIterator struct {
-  *MessageList
-  LastEventId uuid.UUID
-  Channel chan *Message
-}
-
-func (messageIterator *MessageIterator) StartItem() *MessageListItem {
-  if nil != messageIterator.LastEventId && nil != messageIterator.MessageList.FirstItem {
-    
-    for currentItem := messageList.FirstItem; nil != currentItem.NextItem(); currentItem = currentItem.NextItem() {
-      if uuid.Equal(currentItem.Message.Id, messageIterator.LastEventId) {
-        return currentItem
-      }
-    }
-  }
-  return messageIterator.MessageList.FirstItem
-}
-
-func (messageIterator *MessageIterator) Iterate() {
-  messageIterator.Lock()
-  defer messageIterator.Unlock()
-
-  currentItem := messageIterator.StartItem()
-  if nil == currentItem {
-    logger.Debug("wait start item")
-    messageIterator.Wait()
-    currentItem = messageIterator.StartItem()
-  }
-  logger.Debug("start write to channel")
-  messageIterator.Channel <- currentItem.Message
-  logger.Debug("end write to channel")
-  for {
-    if nil == currentItem.NextItem() {
-      logger.Debug("wait next imte")
-      messageIterator.Wait()
-    }
-    logger.Debug("next item")
-    currentItem = currentItem.NextItem()
-
-    logger.Debug("start write to channel")
-    select {
-      case messageIterator.Channel <- currentItem. Message:
-        logger.Debug("end write to channel")
-        continue
-      default:
-        logger.Debug("error write to channel")
-        break
-    }
-  }
-}
-
-func (messageList *MessageList) Iterator(lastEventId uuid.UUID) <- chan *Message {
-  messageIterator := &MessageIterator {
-    MessageList: messageList,
-    LastEventId: lastEventId,
-    Channel: make(chan *Message),
-  }
-  go messageIterator.Iterate()
-  return messageIterator.Channel
 }
 
 func (messageList *MessageList) Clean() {
@@ -144,6 +91,66 @@ func (messageList *MessageList) Clean() {
 
   messageList.FirstItem = nil
   messageList.LastItem = nil
+}
+
+type MessageIterator struct {
+  *MessageList
+  LastEventId uuid.UUID
+  Messages chan *Message
+  Closed chan struct{}
+}
+
+func (messageIterator *MessageIterator) StartItem() MessageListCursor {
+  if nil != messageIterator.LastEventId && nil != messageIterator.MessageList.FirstItem {
+    
+    for currentItem := messageList.FirstItem; nil != currentItem.NextItem(); currentItem = currentItem.NextItem() {
+      if uuid.Equal(currentItem.Message().Id, messageIterator.LastEventId) {
+        return currentItem
+      }
+    }
+  }
+  return messageIterator.MessageList
+}
+
+func (messageIterator *MessageIterator) Publish(message *Message) error {
+  select {
+  case messageIterator.Messages <- message:
+    return nil
+  case <- messageIterator.Closed:
+    return errors.New("Iterator closed")
+  }
+}
+
+func (messageIterator *MessageIterator) Iterate() {
+  messageIterator.Lock()
+  defer messageIterator.Unlock()
+
+  var currentItem MessageListCursor = messageIterator.StartItem()
+
+  for {
+    if nil == currentItem.NextItem() {
+      messageIterator.Wait()
+    }
+    currentItem = currentItem.NextItem()
+
+    if err := messageIterator.Publish(currentItem.Message()); nil != err {
+      logger.Error(err.Error())
+      break
+    }
+ }
+}
+
+func (messageIterator *MessageIterator) Close() {
+  messageIterator.Closed <- struct{}{}
+}
+
+func (messageList *MessageList) Iterator(lastEventId uuid.UUID) *MessageIterator {
+  return &MessageIterator {
+    MessageList: messageList,
+    LastEventId: lastEventId,
+    Messages: make(chan *Message),
+    Closed: make(chan struct{}),
+  }
 }
 
 var messageList = NewMessageList()
