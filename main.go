@@ -4,14 +4,16 @@ import (
 	"net/http"
 	"fmt"
 	"os"
-	"log"
 	"encoding/json"
 	"html/template"
 	
 	"github.com/gorilla/mux"
 	"github.com/yosssi/ace"
+	"github.com/op/go-logging"
 	"code.google.com/p/go-uuid/uuid"
 )
+
+var logger = logging.MustGetLogger("sever")
 
 func main() {
 	router := mux.NewRouter()
@@ -26,8 +28,13 @@ func main() {
 	serveMux.Handle("/assets/", http.FileServer(http.Dir(".")))
 	serveMux.Handle("/", router)
 
+	httpLogger := NewHttpLogger(serveMux)
+
 	address := fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
-	log.Fatal(http.ListenAndServe(address, serveMux))
+
+	logger.Info("Listen on %s", address)
+
+	logger.Fatal(http.ListenAndServe(address, httpLogger))
 }
 
 var indexTemplae = template.Must(ace.Load("templates/index", "", &ace.Options{
@@ -69,7 +76,7 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 		fmt.Fprintf(responseWriter, "id: %s\n", message.Id)
 		fmt.Fprint(responseWriter, "data: ")
 		if encodeErr := json.NewEncoder(responseWriter).Encode(message); nil != encodeErr {
-			log.Println(encodeErr.Error())
+			logger.Error(encodeErr.Error())
 			return
 		}
 		fmt.Fprint(responseWriter, "\n\n")
