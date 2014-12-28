@@ -13,14 +13,23 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
-var logger = logging.MustGetLogger("sever")
+var logger *logging.Logger
+
+func init() {
+	logFormater := logging.MustStringFormatter(`%{color}[%{level:8s}] %{time} > %{message} %{color:reset}`)
+	logging.SetFormatter(logFormater)
+	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
+	logging.SetBackend(logBackend)
+
+	logger = logging.MustGetLogger("sever")
+}
 
 func main() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/api/messages", getMessages).Methods("GET")
 	router.HandleFunc("/api/messages", createMessage).Methods("POST")
-	router.HandleFunc("/api/messages", clean).Methods("DELETE")
+	router.HandleFunc("/api/messages", deleteMessages).Methods("DELETE")
 
 	router.HandleFunc("/{user}", index).Methods("GET")
 
@@ -84,7 +93,7 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func clean(responseWriter http.ResponseWriter, request *http.Request) {
+func deleteMessages(responseWriter http.ResponseWriter, request *http.Request) {
 	messageList.Clean()
 	responseWriter.WriteHeader(http.StatusOK)
 }
