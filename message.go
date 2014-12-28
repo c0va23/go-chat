@@ -101,11 +101,16 @@ type MessageIterator struct {
 }
 
 func (messageIterator *MessageIterator) StartItem() MessageListCursor {
-  if nil != messageIterator.LastEventId && nil != messageIterator.MessageList.FirstItem {
-    
-    for currentItem := messageList.FirstItem; nil != currentItem.NextItem(); currentItem = currentItem.NextItem() {
+  if nil != messageIterator.LastEventId {
+    currentItem := messageIterator.MessageList.FirstItem
+    for {
+      if nil == currentItem {
+        return messageIterator.MessageList
+      }
       if uuid.Equal(currentItem.Message().Id, messageIterator.LastEventId) {
         return currentItem
+      } else {
+        currentItem = currentItem.NextItem()
       }
     }
   }
