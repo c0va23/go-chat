@@ -19,6 +19,19 @@ type Message struct {
   MessageData
 }
 
+type MessageNextItem interface {
+  NextItem() *MessageListItem
+}
+
+type MessageListItem struct {
+  *Message
+  Next *MessageListItem
+}
+
+func (messageListItem *MessageListItem) NextItem() *MessageListItem {
+  return messageListItem.Next
+}
+
 func NewMessage(messageData MessageData) *Message {
   return &Message {
     Id: uuid.NewUUID(),
@@ -31,7 +44,8 @@ type MessageList struct {
   sync.Locker
   *sync.Cond
 
-  Messages []*Message
+  FirstItem *MessageListItem
+  LastItem *MessageListItem
 }
 
 func NewMessageList() *MessageList {
@@ -39,15 +53,27 @@ func NewMessageList() *MessageList {
   message := &MessageList{
     Locker: mutex,
     Cond: sync.NewCond(mutex),
-    Messages: make([]*Message, 0),
   }
   return message
 }
 
+func (messageList *MessageList) NextItem() *MessageListItem {
+  return messageList.FirstItem
+}
+
 func (messageList *MessageList) Push(message *Message) {
-  messageList.Lock()
-  messageList.Messages = append(messageList.Messages, message)
-  messageList.Unlock()
+  messageListItem := &MessageListItem {
+    Message: message,
+  }
+
+  if nil == messageList.FirstItem {
+    messageList.FirstItem = messageListItem
+  } else {
+    messageList.LastItem.Next = messageListItem
+  }
+
+  messageList.LastItem = messageListItem
+
   messageList.Broadcast()
 }
 
@@ -57,30 +83,50 @@ type MessageIterator struct {
   Channel chan *Message
 }
 
-func (messageIterator *MessageIterator) StartIndex() int {
-  if nil != messageIterator.LastEventId {
-    messageIterator.Lock()
-    for index, message := range messageIterator.Messages {
-      if uuid.Equal(message.Id, messageIterator.LastEventId) {
-        return index
+func (messageIterator *MessageIterator) StartItem() *MessageListItem {
+  if nil != messageIterator.LastEventId && nil != messageIterator.MessageList.FirstItem {
+    
+    for currentItem := messageList.FirstItem; nil != currentItem.NextItem(); currentItem = currentItem.NextItem() {
+      if uuid.Equal(currentItem.Message.Id, messageIterator.LastEventId) {
+        return currentItem
       }
     }
-    messageIterator.Unlock()
   }
-  return 0
+  return messageIterator.MessageList.FirstItem
 }
 
 func (messageIterator *MessageIterator) Iterate() {
-  for index := messageIterator.StartIndex(); true; index++ {
-    messageIterator.Lock()
-    if len(messageIterator.Messages) == index {
+  messageIterator.Lock()
+  defer messageIterator.Unlock()
+
+  currentItem := messageIterator.StartItem()
+  if nil == currentItem {
+    logger.Debug("wait start item")
+    messageIterator.Wait()
+    currentItem = messageIterator.StartItem()
+  }
+  logger.Debug("start write to channel")
+  messageIterator.Channel <- currentItem.Message
+  logger.Debug("end write to channel")
+  for {
+    if nil == currentItem.NextItem() {
+      logger.Debug("wait next imte")
       messageIterator.Wait()
     }
-    messageIterator.Channel <- messageIterator.Messages[index]
-    messageIterator.Unlock()
+    logger.Debug("next item")
+    currentItem = currentItem.NextItem()
+
+    logger.Debug("start write to channel")
+    select {
+      case messageIterator.Channel <- currentItem. Message:
+        logger.Debug("end write to channel")
+        continue
+      default:
+        logger.Debug("error write to channel")
+        break
+    }
   }
 }
-
 
 func (messageList *MessageList) Iterator(lastEventId uuid.UUID) <- chan *Message {
   messageIterator := &MessageIterator {
@@ -93,7 +139,11 @@ func (messageList *MessageList) Iterator(lastEventId uuid.UUID) <- chan *Message
 }
 
 func (messageList *MessageList) Clean() {
-  messageList.Messages = make([]*Message, 0)
+  messageList.Lock()
+  defer messageList.Unlock()
+
+  messageList.FirstItem = nil
+  messageList.LastItem = nil
 }
 
 var messageList = NewMessageList()

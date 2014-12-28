@@ -86,7 +86,7 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 		fmt.Fprint(responseWriter, "data: ")
 		if encodeErr := json.NewEncoder(responseWriter).Encode(message); nil != encodeErr {
 			logger.Error(encodeErr.Error())
-			return
+			break
 		}
 		fmt.Fprint(responseWriter, "\n\n")
 		flusher.Flush()
