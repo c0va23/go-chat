@@ -8,26 +8,26 @@ import (
 	"encoding/json"
 	"html/template"
 	
-	"github.com/toonketels/router"
+	"github.com/gorilla/mux"
 	"github.com/yosssi/ace"
 	"code.google.com/p/go-uuid/uuid"
 )
 
 func main() {
-	router := router.NewRouter()
+	router := mux.NewRouter()
 
-	router.Get("/api/messages", http.HandlerFunc(getMessages))
-	router.Post("/api/messages", http.HandlerFunc(createMessage))
-	router.Get("/api/clean", http.HandlerFunc(clean))
+	router.HandleFunc("/api/messages", getMessages).Methods("GET")
+	router.HandleFunc("/api/messages", createMessage).Methods("POST")
+	router.HandleFunc("/api/messages", clean).Methods("DELETE")
 
-	router.Get("/:user", index)
+	router.HandleFunc("/{user}", index).Methods("GET")
 
-	mux := http.NewServeMux()
-	mux.Handle("/assets/", http.FileServer(http.Dir(".")))
-	mux.Handle("/", router)
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/assets/", http.FileServer(http.Dir(".")))
+	serveMux.Handle("/", router)
 
 	address := fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
-	log.Fatal(http.ListenAndServe(address, mux))
+	log.Fatal(http.ListenAndServe(address, serveMux))
 }
 
 var indexTemplae = template.Must(ace.Load("templates/index", "", &ace.Options{
@@ -37,9 +37,8 @@ var indexTemplae = template.Must(ace.Load("templates/index", "", &ace.Options{
 }))
 
 func index(responseWriter http.ResponseWriter, request *http.Request) {
-	context := router.Context(request)
-	user := context.Params["user"]
-	indexTemplae.Execute(responseWriter, map[string]string{"user": user})
+	vars := mux.Vars(request)
+	indexTemplae.Execute(responseWriter, vars)
 }
 
 func createMessage(responseWriter http.ResponseWriter, request *http.Request) {
@@ -70,7 +69,7 @@ func getMessages(responseWriter http.ResponseWriter, request *http.Request) {
 		fmt.Fprintf(responseWriter, "id: %s\n", message.Id)
 		fmt.Fprint(responseWriter, "data: ")
 		if encodeErr := json.NewEncoder(responseWriter).Encode(message); nil != encodeErr {
-			log.Println(encodeErr)
+			log.Println(encodeErr.Error())
 			return
 		}
 		fmt.Fprint(responseWriter, "\n\n")
